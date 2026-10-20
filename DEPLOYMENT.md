@@ -239,3 +239,16 @@ once it matches.
 - `400 Invalid Headers: ensure the required headers are included` on a v1 call → missing
   `x-sfdc-tenant-id` (format `core/<env>/<orgId>` — this server decodes it from the access token's
   own JWT header rather than hardcoding it, see `decodeTenantId` in `agentApiClient.ts`).
+- An agent that asks for order/account details refuses with something like "I don't have an order
+  system I can look at" → it needs a `ContactId` session variable that was never set. Pass the
+  customer's email to the `ask_*` tool so it resolves to a Contact (see README's "Customer
+  identity" section) — but note that resolution is a **static checked-in lookup**, not a live
+  query: `sObject type 'Contact' is not supported` / `'Account' is not supported` when querying
+  via this integration user's token is the "Salesforce Integration" license itself blocking
+  standard CRM objects, not a missing permission set. No permission set fixes this — it's a
+  license-level restriction.
+- Claude invokes a tool, gets a real reply, but still can't resolve the user's actual request
+  (e.g. "I could not find any case with the number 110") → check whether the number format matches
+  what the agent's own internal lookup expects (e.g. a zero-padded `OrderNumber` like `00000110`
+  vs. the bare number a human would say) before assuming anything is broken upstream of the agent
+  itself.
