@@ -1,0 +1,34 @@
+{
+  "name": "boldgroup-agentforce-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server bridging Claude to Agentforce agents in the BoldGroup Salesforce org via the Agent API",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "heroku-postbuild": "npm run build",
+    "start": "node dist/index.js",
+    "smoke-test": "tsx scripts/smoke-test-agent-api.ts",
+    "test": "vitest run",
+    "lint": "eslint src test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.15.0",
+    "vitest": "^2.1.5"
+  }
+}
