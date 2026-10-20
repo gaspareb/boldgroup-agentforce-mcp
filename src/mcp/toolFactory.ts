@@ -7,9 +7,14 @@ import { logger } from "../util/logger.js";
 
 const FALLBACK_SESSION_KEY = "no-mcp-session";
 
-async function askAgent(agent: AgentConfig, mcpSessionId: string, message: string): Promise<string> {
+async function askAgent(
+  agent: AgentConfig,
+  mcpSessionId: string,
+  message: string,
+  email: string | undefined,
+): Promise<string> {
   const sessionId = getAgentSessionId(mcpSessionId, agent.agentId);
-  const reply = await sendMessage(agent.agentId, sessionId, message);
+  const reply = await sendMessage(agent.agentId, sessionId, message, email);
   setAgentSessionId(mcpSessionId, agent.agentId, reply.sessionId);
   return reply.text;
 }
@@ -18,12 +23,23 @@ export function registerAgentTool(server: McpServer, agent: AgentConfig): void {
   server.tool(
     agent.toolName,
     agent.description,
-    { message: z.string().min(1).describe("The message to send to this Agentforce agent") },
-    async ({ message }, extra) => {
+    {
+      message: z.string().min(1).describe("The message to send to this Agentforce agent"),
+      email: z
+        .string()
+        .email()
+        .optional()
+        .describe(
+          "The customer's email address, if known. Pass this whenever you know who you're " +
+            "talking to - it gives the agent the customer identity it needs for anything " +
+            "order/account-specific (e.g. looking up or modifying an order). Omit if unknown.",
+        ),
+    },
+    async ({ message, email }, extra) => {
       const mcpSessionId = (extra as { sessionId?: string }).sessionId ?? FALLBACK_SESSION_KEY;
 
       try {
-        const reply = await askAgent(agent, mcpSessionId, message);
+        const reply = await askAgent(agent, mcpSessionId, message, email);
         return { content: [{ type: "text" as const, text: reply }] };
       } catch (err) {
         const errMessage = err instanceof Error ? err.message : String(err);

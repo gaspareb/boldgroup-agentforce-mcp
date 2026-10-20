@@ -19,7 +19,12 @@ vi.mock("../src/salesforce/tokenManager.js", () => ({
   invalidateToken: vi.fn(),
 }));
 
+vi.mock("../src/salesforce/contactLookup.js", () => ({
+  findContactIdByEmail: vi.fn(async () => undefined),
+}));
+
 const { getValidToken, invalidateToken } = await import("../src/salesforce/tokenManager.js");
+const { findContactIdByEmail } = await import("../src/salesforce/contactLookup.js");
 const { sendMessage, endSession } = await import("../src/salesforce/agentApiClient.js");
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -28,6 +33,7 @@ function jsonResponse(status: number, body: unknown): Response {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  findContactIdByEmail.mockReset().mockResolvedValue(undefined);
 });
 
 describe("agentApiClient.sendMessage", () => {
@@ -129,5 +135,71 @@ describe("agentApiClient.sendMessage", () => {
     await sendMessage("agent-123", undefined, "hello");
 
     expect(getValidToken).toHaveBeenCalled();
+  });
+
+  it("passes a resolved ContactId as a session variable when email is given", async () => {
+    findContactIdByEmail.mockResolvedValue("003xyz");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, { sessionId: "sess-email-1" }))
+      .mockResolvedValueOnce(jsonResponse(200, { messages: [{ message: "Hi Robert" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const reply = await sendMessage("agent-123", undefined, "what's on order 110?", "rjanzen@example.com");
+
+    expect(reply).toEqual({ text: "Hi Robert", sessionId: "sess-email-1" });
+    expect(findContactIdByEmail).toHaveBeenCalledWith("rjanzen@example.com");
+    const createBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(createBody.variables).toEqual([{ name: "ContactId", type: "Text", value: "003xyz" }]);
+  });
+
+  it("omits the variables field when the email doesn't resolve to a contact", async () => {
+    findContactIdByEmail.mockResolvedValue(undefined);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, { sessionId: "sess-email-2" }))
+      .mockResolvedValueOnce(jsonResponse(200, { messages: [{ message: "ok" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendMessage("agent-123", undefined, "hello", "nobody@example.com");
+
+    const createBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(createBody.variables).toBeUndefined();
+  });
+
+  it("reuses the session on a later call with the same email", async () => {
+    findContactIdByEmail.mockResolvedValue("003xyz");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, { sessionId: "sess-email-3" }))
+      .mockResolvedValueOnce(jsonResponse(200, { messages: [{ message: "first" }] }))
+      .mockResolvedValueOnce(jsonResponse(200, { messages: [{ message: "second" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await sendMessage("agent-123", undefined, "one", "rjanzen@example.com");
+    const second = await sendMessage("agent-123", first.sessionId, "two", "rjanzen@example.com");
+
+    expect(second.sessionId).toBe("sess-email-3");
+    expect(fetchMock).toHaveBeenCalledTimes(3); // one create, two sends - no second create
+  });
+
+  it("starts a fresh session when an email is introduced mid-conversation", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, { sessionId: "sess-email-4" }))
+      .mockResolvedValueOnce(jsonResponse(200, { messages: [{ message: "anonymous reply" }] }))
+      .mockResolvedValueOnce(jsonResponse(200, { sessionId: "sess-email-5" }))
+      .mockResolvedValueOnce(jsonResponse(200, { messages: [{ message: "identified reply" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const anonymous = await sendMessage("agent-123", undefined, "hi");
+    expect(anonymous.sessionId).toBe("sess-email-4");
+
+    findContactIdByEmail.mockResolvedValue("003xyz");
+    const identified = await sendMessage("agent-123", anonymous.sessionId, "it's me", "rjanzen@example.com");
+
+    expect(identified.sessionId).toBe("sess-email-5");
+    const secondCreateBody = JSON.parse(fetchMock.mock.calls[2][1].body);
+    expect(secondCreateBody.variables).toEqual([{ name: "ContactId", type: "Text", value: "003xyz" }]);
   });
 });

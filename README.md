@@ -27,10 +27,13 @@ src/
     env.ts                   # env var validation (zod)
     agents.ts                # loads + validates the agent registry
     agents.registry.json     # which agents are exposed, and as what tool names
+    contacts.ts               # loads + validates the email -> ContactId registry
+    contacts.registry.json    # known demo customers, for identity context (see below)
   auth/inboundAuth.ts         # Bearer-token (or ?key=) auth for inbound MCP clients
   salesforce/
     tokenManager.ts           # OAuth client-credentials token fetch + cache
     agentApiClient.ts         # Agent API v1 client: create/send/end session
+    contactLookup.ts           # email -> ContactId (see "Customer identity" below)
     types.ts
   mcp/
     server.ts                 # McpServer, one tool per registry entry
@@ -62,6 +65,22 @@ external customers today, so that's what this server actually talks to. If/when 
 is granted, the Salesforce client layer (`src/salesforce/agentApiClient.ts`) is the only thing that
 would need to change — the MCP/tool layer above it doesn't know or care which Agent API version is
 underneath.
+
+## Customer identity (ContactId)
+
+Agentforce agents often require a `ContactId` session variable before they'll touch anything
+order/account-specific — the MIAW widget gets this for free from the logged-in customer's session,
+but a headless API caller has no equivalent. The `ask_*` tools accept an optional `email`
+parameter for exactly this: when Claude knows who it's talking to, it can pass their email, and
+the server resolves it to a `ContactId` and sets it when creating the Agent API session (variables
+can only be set at session creation, so a new/changed email forces a fresh session).
+
+The resolution itself is a small checked-in lookup (`src/config/contacts.registry.json`), **not**
+a live Salesforce query — the "Salesforce Integration" license that Client Credentials Flow
+requires explicitly blocks standard CRM objects (`Contact`, `Account`) regardless of permission
+sets, so this integration user can't query Contact at all. A real dynamic lookup would need a
+second, differently-licensed integration path. Add known test customers to the registry file (or
+override via the `CONTACTS_REGISTRY_JSON` Config Var, same pattern as `AGENT_REGISTRY_JSON`).
 
 ## Adding another agent
 

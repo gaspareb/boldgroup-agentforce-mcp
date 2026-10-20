@@ -7,6 +7,7 @@ const envSchema = z.object({
   SF_CLIENT_SECRET: z.string().min(1),
   AGENT_API_BASE_URL: z.string().url(),
   AGENT_REGISTRY_JSON: z.string().optional(),
+  CONTACTS_REGISTRY_JSON: z.string().optional(),
   PORT: z.string().optional(),
   NODE_ENV: z.string().optional(),
 });

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { env } from "../config/env.js";
 import { logger } from "../util/logger.js";
+import { findContactIdByEmail } from "./contactLookup.js";
 import { getValidToken, invalidateToken } from "./tokenManager.js";
 import { AgentApiError, AgentSessionExpiredError } from "./types.js";
 
@@ -76,7 +77,7 @@ async function request(
   return response.json();
 }
 
-async function createSession(agentId: string): Promise<string> {
+async function createSession(agentId: string, contactId?: string): Promise<string> {
   const data = (await request(`/agents/${agentId}/sessions`, {
     method: "POST",
     body: {
@@ -84,6 +85,9 @@ async function createSession(agentId: string): Promise<string> {
       instanceConfig: { endpoint: env.SF_LOGIN_URL },
       bypassUser: true,
       streamingCapabilities: { chunkTypes: ["Text"] },
+      // Variables are only settable at session creation (per the Agent API spec), which is why
+      // a ContactId change forces a brand-new session rather than being sent with a later message.
+      ...(contactId ? { variables: [{ name: "ContactId", type: "Text", value: contactId }] } : {}),
     },
   })) as { sessionId?: string };
 
@@ -110,6 +114,10 @@ function extractText(messages: AgentMessage[] | undefined): string {
 // Agent API v1 requires a per-session, incrementing sequenceId on every message.
 const nextSequenceId = new Map<string, number>();
 
+// Tracks which ContactId (if any) each active session was created with, so repeated calls with
+// the same email reuse the session instead of restarting it every turn.
+const sessionContactId = new Map<string, string | undefined>();
+
 async function sendRawMessage(sessionId: string, text: string): Promise<string> {
   const sequenceId = nextSequenceId.get(sessionId) ?? 1;
 
@@ -124,6 +132,7 @@ async function sendRawMessage(sessionId: string, text: string): Promise<string> 
 
 async function endSession(sessionId: string): Promise<void> {
   nextSequenceId.delete(sessionId);
+  sessionContactId.delete(sessionId);
   try {
     await request(`/sessions/${sessionId}`, {
       method: "DELETE",
@@ -144,8 +153,22 @@ export async function sendMessage(
   agentId: string,
   sessionId: string | undefined,
   text: string,
+  email?: string,
 ): Promise<AgentReply> {
-  let activeSessionId = sessionId ?? (await createSession(agentId));
+  const contactId = email ? await findContactIdByEmail(email) : undefined;
+
+  // A ContactId can only be set when a session is created, so if it's new or has changed since
+  // the current session started, that session is no longer usable for identity-aware requests -
+  // start a fresh one rather than silently continuing without the right customer context.
+  const needsFreshSession = !sessionId || sessionContactId.get(sessionId) !== contactId;
+
+  let activeSessionId: string;
+  if (needsFreshSession) {
+    activeSessionId = await createSession(agentId, contactId);
+    sessionContactId.set(activeSessionId, contactId);
+  } else {
+    activeSessionId = sessionId;
+  }
 
   try {
     const reply = await sendRawMessage(activeSessionId, text);
@@ -154,7 +177,9 @@ export async function sendMessage(
     if (err instanceof AgentSessionExpiredError) {
       logger.info("Agent session expired, starting a fresh one", { agentId });
       nextSequenceId.delete(activeSessionId);
-      activeSessionId = await createSession(agentId);
+      sessionContactId.delete(activeSessionId);
+      activeSessionId = await createSession(agentId, contactId);
+      sessionContactId.set(activeSessionId, contactId);
       const reply = await sendRawMessage(activeSessionId, text);
       return { text: reply, sessionId: activeSessionId };
     }
