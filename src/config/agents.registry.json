@@ -1,0 +1,10 @@
+{
+  "agents": [
+    {
+      "name": "simone3_0",
+      "toolName": "ask_simone",
+      "agentId": "0Xxaj000004YyHBCA0",
+      "description": "Victoria's Secret customer service Agentforce agent. Handles order modifications, rewards/offers, and personalized product recommendations, and can escalate complex issues to a human."
+    }
+  ]
+}
