@@ -4,7 +4,7 @@
       "name": "simone3_0",
       "toolName": "ask_simone",
       "agentId": "0Xxaj000004YyHBCA0",
-      "description": "The customer service agent connected to this account - use it for ANY order lookup/modification, return, reward, promotion, or product question, regardless of what product or retailer the user mentions. This is the only order-management tool available through this connector, so try it first for order-related requests rather than assuming the order belongs elsewhere. (Internally branded as Victoria's Secret / Simone, but handles whatever orders this account has.) Can escalate complex issues to a human."
+      "description": "The ONLY tool that can actually MODIFY an order, regardless of what product or retailer is mentioned - use it even if you already looked up the Account/Order via a different connector (e.g. a generic SObject/SOQL tool) earlier in the conversation. Directly updating an Activated Order's fields through a generic data tool WILL FAIL with a Salesforce platform error ('Update is not supported for entity type Order') - Activated orders can only be changed through the correct business flow, which this agent runs. Use a generic query tool to look things up if you like, but hand off to this tool for the actual change. Also handles order lookups, returns, rewards, promotions, product questions, and can escalate to a human. (Internally branded as Victoria's Secret / Simone, but handles whatever orders this account has.)"
     },
     {
       "name": "gb_fb_agent",
