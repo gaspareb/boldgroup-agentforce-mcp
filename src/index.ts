@@ -26,7 +26,19 @@ app.post("/mcp", requireApiKey, async (req, res) => {
     : undefined;
 
   if (!transport) {
-    if (sessionIdHeader || !isInitializeRequest(req.body)) {
+    if (sessionIdHeader) {
+      // 404 (not 400) is the spec-defined signal for "session unrecognized" - it tells
+      // well-behaved clients to discard this session and silently re-initialize, rather than
+      // surfacing a hard error. Happens whenever this dyno restarts, since sessions are in-memory.
+      res.status(404).json({
+        jsonrpc: "2.0",
+        error: { code: -32001, message: "Session not found" },
+        id: null,
+      });
+      return;
+    }
+
+    if (!isInitializeRequest(req.body)) {
       res.status(400).json({
         jsonrpc: "2.0",
         error: { code: -32000, message: "Bad Request: no valid session and not an initialize request" },
@@ -64,7 +76,9 @@ async function handleSessionRequest(req: express.Request, res: express.Response)
   const transport = sessionId ? transports.get(sessionId) : undefined;
 
   if (!transport) {
-    res.status(400).send("Invalid or missing MCP session ID");
+    // Same 404 reasoning as the POST handler: tells the client to re-initialize rather than
+    // treating this as a hard failure.
+    res.status(404).send("Session not found");
     return;
   }
 
