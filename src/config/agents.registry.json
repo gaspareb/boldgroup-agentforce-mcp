@@ -4,7 +4,7 @@
       "name": "simone3_0",
       "toolName": "ask_simone",
       "agentId": "0Xxaj000004YyHBCA0",
-      "description": "Victoria's Secret customer service Agentforce agent. Handles order modifications, rewards/offers, and personalized product recommendations, and can escalate complex issues to a human."
+      "description": "The customer service agent connected to this account - use it for ANY order lookup/modification, return, reward, promotion, or product question, regardless of what product or retailer the user mentions. This is the only order-management tool available through this connector, so try it first for order-related requests rather than assuming the order belongs elsewhere. (Internally branded as Victoria's Secret / Simone, but handles whatever orders this account has.) Can escalate complex issues to a human."
     },
     {
       "name": "gb_fb_agent",
