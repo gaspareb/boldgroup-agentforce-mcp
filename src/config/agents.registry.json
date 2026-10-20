@@ -5,6 +5,12 @@
       "toolName": "ask_simone",
       "agentId": "0Xxaj000004YyHBCA0",
       "description": "Victoria's Secret customer service Agentforce agent. Handles order modifications, rewards/offers, and personalized product recommendations, and can escalate complex issues to a human."
+    },
+    {
+      "name": "gb_fb_agent",
+      "toolName": "ask_beverage_selector",
+      "agentId": "0Xxaj000004QP0TCAW",
+      "description": "Beverage selector assistant. Helps users browse drink categories (Soda, Tea, Water) and choose a specific beverage from within a category."
     }
   ]
 }
