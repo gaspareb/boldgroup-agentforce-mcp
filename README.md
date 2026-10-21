@@ -17,6 +17,10 @@ stay in context.
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** — step-by-step runbook for setting this up against a new
   org/agent and deploying to Heroku. Every real error we hit building this is called out there as
   a named pitfall, not just the happy path.
+- **[NATIVE_MCP_SERVER.md](NATIVE_MCP_SERVER.md)** — a second, parallel way to expose the same
+  agents via MCP, hosted natively inside Salesforce instead of on this external server. No code
+  (pure Setup config), but documented the same way — what it is, how it compares, how to rebuild
+  it, and the gotchas that are different from the Heroku path.
 
 ## Project layout
 
